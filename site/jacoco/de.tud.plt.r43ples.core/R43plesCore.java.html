@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>R43plesCore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">r43ples</a> &gt; <a href="index.source.html" class="el_package">de.tud.plt.r43ples.core</a> &gt; <span class="el_source">R43plesCore.java</span></div><h1>R43plesCore.java</h1><pre class="source lang-java linenums">package de.tud.plt.r43ples.core;
+
+import de.tud.plt.r43ples.exception.InternalErrorException;
+import de.tud.plt.r43ples.exception.QueryErrorException;
+import de.tud.plt.r43ples.existentobjects.*;
+import de.tud.plt.r43ples.management.Config;
+import de.tud.plt.r43ples.management.R43plesRequest;
+import de.tud.plt.r43ples.management.RevisionManagementOriginal;
+import de.tud.plt.r43ples.management.SparqlRewriter;
+import de.tud.plt.r43ples.triplestoreInterface.TripleStoreInterfaceSingleton;
+import org.apache.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * This class implements the R43ples core interface and provides methods to access the core functions of R43ples.
+ *
+ * @author Stephan Hensel
+ *
+ */
+public class R43plesCore implements R43plesCoreInterface {
+
+    /** The logger. **/
+<span class="fc" id="L26">    private Logger logger = Logger.getLogger(R43plesCore.class);</span>
+
+
+    /**
+     * The constructor.
+     */
+<span class="fc" id="L32">    protected R43plesCore() {</span>
+
+<span class="fc" id="L34">    }</span>
+
+    /**
+     * Create a new initial commit.
+     *
+     * @param request the request received by R43ples
+     * @return the created initial commit
+     * @throws InternalErrorException
+     */
+    @Override
+    public InitialCommit createInitialCommit(R43plesRequest request) throws InternalErrorException {
+<span class="fc" id="L45">        InitialCommitDraft initialCommitDraft = new InitialCommitDraft(request);</span>
+<span class="fc" id="L46">        return initialCommitDraft.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Create a new initial commit.
+     *
+     * @param graphName the graph name
+     * @param addSet the add set as N-Triples
+     * @param deleteSet the delete set as N-Triples
+     * @param user the user
+     * @param message the message
+     * @return the created update commit
+     * @throws InternalErrorException
+     */
+    @Override
+    public InitialCommit createInitialCommit(String graphName, String addSet, String deleteSet, String user, String message) throws InternalErrorException {
+<span class="fc" id="L62">        InitialCommitDraft initialCommitDraft = new InitialCommitDraft(graphName, addSet, deleteSet, user, message);</span>
+<span class="fc" id="L63">        return initialCommitDraft.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Create a new update commit.
+     *
+     * @param request the request received by R43ples
+     * @return the list of created update commits
+     * @throws InternalErrorException
+     */
+    @Override
+    public ArrayList&lt;UpdateCommit&gt; createUpdateCommit(R43plesRequest request) throws InternalErrorException {
+<span class="fc" id="L75">        UpdateCommitDraft updateCommitDraft = new UpdateCommitDraft(request);</span>
+<span class="fc" id="L76">        return updateCommitDraft.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Create a new update commit.
+     *
+     * @param graphName the graph name
+     * @param addSet the add set as N-Triples
+     * @param deleteSet the delete set as N-Triples
+     * @param user the user
+     * @param message the message
+     * @param derivedFromIdentifier the revision identifier of the revision or the reference identifier from which the new revision should be derive from
+     * @return the created update commit
+     * @throws InternalErrorException
+     */
+    @Override
+    public UpdateCommit createUpdateCommit(String graphName, String addSet, String deleteSet, String user, String message, String derivedFromIdentifier) throws InternalErrorException {
+<span class="fc" id="L93">        UpdateCommitDraft updateCommitDraft = new UpdateCommitDraft(graphName, addSet, deleteSet, user, message, derivedFromIdentifier);</span>
+<span class="fc" id="L94">        return updateCommitDraft.createCommitInTripleStore().get(0);</span>
+    }
+
+    /**
+     * Create a new reference commit.
+     *
+     * @param request the request received by R43ples
+     * @return the created reference commit
+     * @throws InternalErrorException
+     */
+    @Override
+    public ReferenceCommit createReferenceCommit(R43plesRequest request) throws InternalErrorException {
+<span class="fc" id="L106">        ReferenceCreationCommitDraft referenceCreationCommitDraft = new ReferenceCreationCommitDraft(request);</span>
+<span class="fc" id="L107">        return referenceCreationCommitDraft.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Create a new reference commit.
+     *
+     * @param graphName the graph name
+     * @param referenceName the reference name
+     * @param revisionIdentifier the revision identifier (the corresponding revision will be the current base for the reference)
+     * @param user the user
+     * @param message the message
+     * @param isBranch states if the created reference is a branch or a tag. (branch =&gt; true; tag =&gt; false)
+     * @return the created reference commit
+     * @throws InternalErrorException
+     */
+    @Override
+    public ReferenceCommit createReferenceCommit(String graphName, String referenceName, String revisionIdentifier, String user, String message, boolean isBranch) throws InternalErrorException {
+<span class="fc" id="L124">        ReferenceCreationCommitDraft referenceCreationCommitDraft = new ReferenceCreationCommitDraft(graphName, referenceName, revisionIdentifier, user, message, isBranch);</span>
+<span class="fc" id="L125">        return referenceCreationCommitDraft.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Create a new merge commit.
+     *
+     * @param request the request received by R43ples
+     * @return the created merge commit
+     * @throws InternalErrorException
+     */
+    @Override
+    public MergeCommit createMergeCommit(R43plesRequest request) throws InternalErrorException {
+<span class="fc" id="L137">        MergeCommitDraft mergeCommitDraft = new MergeCommitDraft(request);</span>
+<span class="fc" id="L138">        return mergeCommitDraft.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Creates a three way merge commit draft by using the corresponding meta information.
+     *
+     * @param graphName the graph name
+     * @param branchNameFrom the branch name (from)
+     * @param branchNameInto the branch name (into)
+     * @param user the user
+     * @param message the message
+     * @param sdd the SDD URI to use
+     * @param triples the triples of the query WITH part
+     * @param type the query type (FORCE, AUTO, MANUAL)
+     * @param with states if the WITH part is available
+     * @throws InternalErrorException
+     */
+    @Override
+    public ThreeWayMergeCommit createThreeWayMergeCommit(String graphName, String branchNameFrom, String branchNameInto, String user, String message, String sdd, String triples, MergeTypes type, boolean with) throws InternalErrorException {
+<span class="nc" id="L157">        ThreeWayMergeCommitDraft threeWayMergeCommit = new ThreeWayMergeCommitDraft(graphName, branchNameFrom, branchNameInto, user, message, sdd, triples, type, with);</span>
+<span class="nc" id="L158">        return threeWayMergeCommit.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Create a new pick commit.
+     *
+     * @param request the request received by R43ples
+     * @return the created pick commit
+     * @throws InternalErrorException
+     */
+    @Override
+    public PickCommit createPickCommit(R43plesRequest request) throws InternalErrorException {
+<span class="fc" id="L170">        PickCommitDraft pickCommitDraft = new PickCommitDraft(request);</span>
+<span class="fc" id="L171">        return pickCommitDraft.createCommitInTripleStore();</span>
+    }
+
+    /**
+     * Drop graph query. This query will delete the whole graph and all corresponding revision information.
+     *
+     * @param query the query
+     * @throws QueryErrorException
+    */
+    @Override
+    public void sparqlDropGraph(final String query) throws QueryErrorException {
+        /* The pattern modifier. */
+<span class="nc" id="L183">        int patternModifier = Pattern.DOTALL + Pattern.MULTILINE + Pattern.CASE_INSENSITIVE;</span>
+<span class="nc" id="L184">        final Pattern patternDropGraph = Pattern.compile(&quot;DROP\\s*(?&lt;silent&gt;SILENT)?\\s*GRAPH\\s*&lt;(?&lt;graph&gt;[^&gt;]*)&gt;&quot;,</span>
+                patternModifier);
+<span class="nc" id="L186">        Matcher m = patternDropGraph.matcher(query);</span>
+<span class="nc" id="L187">        boolean found = false;</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        while (m.find()) {</span>
+<span class="nc" id="L189">            found = true;</span>
+<span class="nc" id="L190">            String graphName = m.group(&quot;graph&quot;);</span>
+<span class="nc" id="L191">            RevisionGraph graph = new RevisionGraph(graphName);</span>
+<span class="nc" id="L192">            graph.purgeRevisionInformation();</span>
+<span class="nc" id="L193">        }</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">        if (!found) {</span>
+<span class="nc" id="L195">            throw new QueryErrorException(&quot;Query contain errors:\n&quot; + query);</span>
+        }
+<span class="nc" id="L197">    }</span>
+
+    /**
+     * Get the response of a SPARQL query (SELECT, CONSTRUCT, ASK).
+     *
+     * @param request the request
+     * @param query_rewriting option if query rewriting should be enabled (true =&gt; enabled)
+     * @return the query response
+     * @throws InternalErrorException
+     */
+    @Override
+    public String getSparqlSelectConstructAskResponse(final R43plesRequest request, final boolean query_rewriting) throws InternalErrorException {
+        String result;
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        if (query_rewriting) {</span>
+<span class="fc" id="L211">            String query_rewritten = SparqlRewriter.rewriteQuery(request.query_sparql);</span>
+<span class="fc" id="L212">            result = TripleStoreInterfaceSingleton.get()</span>
+                    .executeSelectConstructAskQuery(Config.getUserDefinedSparqlPrefixes() + query_rewritten, request.format);
+<span class="fc" id="L214">        } else {</span>
+<span class="fc" id="L215">            result = getSparqlSelectConstructAskResponseClassic(request.query_sparql, request.format);</span>
+        }
+<span class="fc" id="L217">        return result;</span>
+    }
+
+    /**
+     * Get the response of a SPARQL query (SELECT, CONSTRUCT, ASK). Classic way.
+     *
+     * @param query the query
+     * @param format the result format
+     * @return the query response
+     * @throws InternalErrorException
+     */
+    private String getSparqlSelectConstructAskResponseClassic(final String query, final String format)
+            throws InternalErrorException {
+<span class="fc" id="L230">        final Pattern patternSelectFromPart = Pattern.compile(</span>
+                &quot;(?&lt;type&gt;FROM|GRAPH)\\s*&lt;(?&lt;graph&gt;[^&gt;\\?]*)(\\?|&gt;)(\\s*REVISION\\s*\&quot;|revision=)(?&lt;revision&gt;([^\&quot;&gt;]+))(&gt;|\&quot;)&quot;,
+                Pattern.DOTALL + Pattern.MULTILINE + Pattern.CASE_INSENSITIVE);
+
+<span class="fc" id="L234">        String queryM = query;</span>
+
+<span class="fc" id="L236">        Matcher m = patternSelectFromPart.matcher(queryM);</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">        while (m.find()) {</span>
+<span class="fc" id="L238">            String graphName = m.group(&quot;graph&quot;);</span>
+<span class="fc" id="L239">            String type = m.group(&quot;type&quot;);</span>
+<span class="fc" id="L240">            String revisionNumber = m.group(&quot;revision&quot;).toLowerCase();</span>
+            String newGraphName;
+
+<span class="fc" id="L243">            RevisionGraph graph = new RevisionGraph(graphName);</span>
+
+            // if no revision number is declared use the MASTER as default
+<span class="pc bpc" id="L246" title="1 of 2 branches missed.">            if (revisionNumber == null) {</span>
+<span class="nc" id="L247">                revisionNumber = &quot;master&quot;;</span>
+            }
+<span class="fc bfc" id="L249" title="All 2 branches covered.">            if (revisionNumber.equalsIgnoreCase(&quot;master&quot;)) {</span>
+                // Respond with MASTER revision - nothing to be done - MASTER
+                // revisions are already created in the named graphs
+<span class="fc" id="L252">                newGraphName = graphName;</span>
+            } else {
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                if (graph.hasBranch(revisionNumber)) {</span>
+<span class="fc" id="L255">                    newGraphName = graph.getReferenceGraph(revisionNumber);</span>
+                } else {
+                    // Respond with specified revision, therefore the revision
+                    // must be generated - saved in graph &lt;graphName-revisionNumber&gt;
+<span class="fc" id="L259">                    newGraphName = graphName + &quot;-&quot; + revisionNumber;</span>
+<span class="fc" id="L260">                    RevisionManagementOriginal.generateFullGraphOfRevision(graphName, revisionNumber, newGraphName);</span>
+                }
+            }
+
+<span class="fc" id="L264">            queryM = m.replaceFirst(type + &quot; &lt;&quot; + newGraphName + &quot;&gt;&quot;);</span>
+<span class="fc" id="L265">            m = patternSelectFromPart.matcher(queryM);</span>
+
+<span class="fc" id="L267">        }</span>
+<span class="fc" id="L268">        String response = TripleStoreInterfaceSingleton.get()</span>
+                .executeSelectConstructAskQuery(Config.getUserDefinedSparqlPrefixes() + queryM, format);
+<span class="fc" id="L270">        return response;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

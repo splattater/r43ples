@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Reference.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">r43ples</a> &gt; <a href="index.source.html" class="el_package">de.tud.plt.r43ples.existentobjects</a> &gt; <span class="el_source">Reference.java</span></div><h1>Reference.java</h1><pre class="source lang-java linenums">package de.tud.plt.r43ples.existentobjects;
+
+import com.hp.hpl.jena.query.QuerySolution;
+import com.hp.hpl.jena.query.ResultSet;
+import de.tud.plt.r43ples.exception.InternalErrorException;
+import de.tud.plt.r43ples.management.Config;
+import de.tud.plt.r43ples.triplestoreInterface.TripleStoreInterfaceSingleton;
+import org.apache.log4j.Logger;
+
+/**
+ * Provides information of an already existent reference.
+ *
+ * @author Stephan Hensel
+ */
+public class Reference {
+
+    /** The logger. **/
+<span class="fc" id="L18">    private Logger logger = Logger.getLogger(Reference.class);</span>
+
+    /** The reference identifier. */
+    private String referenceIdentifier;
+    /** The reference URI. */
+    private String referenceURI;
+
+    /** The revision graph URI. */
+    private String revisionGraphURI;
+    /** The corresponding revision graph. */
+    private RevisionGraph revisionGraph;
+
+
+    /**
+     * The constructor.
+     *
+     * @param revisionGraph the revision graph
+     * @param referenceInformation the reference information (identifier or URI of the reference)
+     * @param isIdentifier identifies if the identifier or the URI of the reference is specified (identifier =&gt; true; URI =&gt; false)
+     * @throws InternalErrorException
+     */
+<span class="fc" id="L39">    public Reference(RevisionGraph revisionGraph, String referenceInformation, boolean isIdentifier) throws InternalErrorException {</span>
+<span class="fc" id="L40">        this.revisionGraph = revisionGraph;</span>
+<span class="fc" id="L41">        this.revisionGraphURI = this.revisionGraph.getRevisionGraphUri();</span>
+
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        if (isIdentifier) {</span>
+<span class="fc" id="L44">            this.referenceIdentifier = referenceInformation;</span>
+<span class="fc" id="L45">            this.referenceURI = calculateReferenceURI(this.referenceIdentifier);</span>
+        } else {
+<span class="fc" id="L47">            this.referenceURI = referenceInformation;</span>
+<span class="fc" id="L48">            this.referenceIdentifier = calculateReferenceIdentifier(this.referenceURI);</span>
+        }
+<span class="fc" id="L50">    }</span>
+
+    /**
+     * The constructor.
+     *
+     * @param revisionGraph the revision graph
+     * @param referenceIdentifier the reference identifier
+     * @param referenceURI the reference URI
+     * @throws InternalErrorException
+     */
+<span class="fc" id="L60">    public Reference(RevisionGraph revisionGraph, String referenceIdentifier, String referenceURI) throws InternalErrorException {</span>
+<span class="fc" id="L61">        this.revisionGraph = revisionGraph;</span>
+<span class="fc" id="L62">        this.revisionGraphURI = this.revisionGraph.getRevisionGraphUri();</span>
+<span class="fc" id="L63">        this.referenceIdentifier = referenceIdentifier;</span>
+<span class="fc" id="L64">        this.referenceURI = referenceURI;</span>
+<span class="fc" id="L65">    }</span>
+
+    /**
+     * Get the corresponding commit of the current reference. This commit created this reference.
+     *
+     * @return the corresponding commit
+     * @throws InternalErrorException
+     */
+    public Commit getCorrespondingCommit() throws InternalErrorException {
+<span class="nc" id="L74">        logger.info(&quot;Get corresponding commit of branch &quot; + referenceIdentifier);</span>
+<span class="nc" id="L75">        String query = Config.prefixes + String.format(&quot;&quot;</span>
+                + &quot;SELECT ?com &quot;
+                + &quot;WHERE { GRAPH  &lt;%s&gt; {&quot;
+                + &quot;	?com a rmo:Commit; &quot;
+                + &quot;	 prov:generated &lt;%s&gt;. &quot;
+                + &quot;} }&quot;, revisionGraphURI, referenceURI);
+<span class="nc" id="L81">        this.logger.debug(query);</span>
+<span class="nc" id="L82">        ResultSet resultSet = TripleStoreInterfaceSingleton.get().executeSelectQuery(query);</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (resultSet.hasNext()) {</span>
+<span class="nc" id="L84">            QuerySolution qs = resultSet.next();</span>
+<span class="nc" id="L85">            return new Commit(revisionGraph, qs.getResource(&quot;?com&quot;).toString());</span>
+        } else {
+<span class="nc" id="L87">            throw new InternalErrorException(&quot;No corresponding commit found for reference &quot; + referenceIdentifier + &quot;.&quot;);</span>
+        }
+    }
+
+    /**
+     * Get the reference identifier.
+     *
+     * @return the reference identifier
+     */
+    public String getReferenceIdentifier() {
+<span class="fc" id="L97">        return referenceIdentifier;</span>
+    }
+
+    /**
+     * Get the reference URI.
+     *
+     * @return the reference URI
+     */
+    public String getReferenceURI() {
+<span class="fc" id="L106">        return referenceURI;</span>
+    }
+
+    /**
+     * Get the revision graph of the reference.
+     *
+     * @return revision graph of the reference
+     */
+    public RevisionGraph getRevisionGraph() {
+<span class="fc" id="L115">        return this.revisionGraph;</span>
+    }
+
+    /**
+     * Calculate the reference URI for a given reference identifier
+     *
+     * @param referenceIdentifier the reference identifier
+     * @return URI of identified reference
+     * @throws InternalErrorException
+     */
+    private String calculateReferenceURI(String referenceIdentifier) throws InternalErrorException {
+<span class="fc" id="L126">        logger.info(&quot;Calculate the branch URI for current branch &quot; + referenceIdentifier + &quot;.&quot;);</span>
+<span class="fc" id="L127">        String query = Config.prefixes + String.format(&quot;&quot;</span>
+                + &quot;SELECT ?uri &quot;
+                + &quot;WHERE { GRAPH  &lt;%s&gt; {&quot;
+                + &quot;	?uri a rmo:Reference; &quot;
+                + &quot;	 rdfs:label \&quot;%s\&quot;. &quot;
+                + &quot;} }&quot;, revisionGraphURI, referenceIdentifier);
+<span class="fc" id="L133">        this.logger.debug(query);</span>
+<span class="fc" id="L134">        ResultSet resultSet = TripleStoreInterfaceSingleton.get().executeSelectQuery(query);</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">        if (resultSet.hasNext()) {</span>
+<span class="fc" id="L136">            QuerySolution qs = resultSet.next();</span>
+<span class="fc" id="L137">            return qs.getResource(&quot;?uri&quot;).toString();</span>
+        } else {
+<span class="nc" id="L139">            throw new InternalErrorException(&quot;No reference URI found for reference &quot; + referenceIdentifier + &quot;.&quot;);</span>
+        }
+    }
+
+    /**
+     * Calculate the reference identifier for a given reference URI
+     *
+     * @param referenceURI the reference URI
+     * @return the reference identifier
+     * @throws InternalErrorException
+     */
+    private String calculateReferenceIdentifier(String referenceURI) throws InternalErrorException {
+<span class="fc" id="L151">        logger.info(&quot;Calculate the reference identifier for current branch URI &quot; + referenceURI + &quot;.&quot;);</span>
+<span class="fc" id="L152">        String query = Config.prefixes + String.format(&quot;&quot;</span>
+                + &quot;SELECT ?id &quot;
+                + &quot;WHERE { GRAPH  &lt;%s&gt; {&quot;
+                + &quot;	&lt;%s&gt; a rmo:Branch; &quot;
+                + &quot;	 rdfs:label ?id. &quot;
+                + &quot;} }&quot;, revisionGraphURI, referenceURI);
+<span class="fc" id="L158">        this.logger.debug(query);</span>
+<span class="fc" id="L159">        ResultSet resultSet = TripleStoreInterfaceSingleton.get().executeSelectQuery(query);</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">        if (resultSet.hasNext()) {</span>
+<span class="fc" id="L161">            QuerySolution qs = resultSet.next();</span>
+<span class="fc" id="L162">            return qs.getLiteral(&quot;?id&quot;).toString();</span>
+        } else {
+<span class="nc" id="L164">            throw new InternalErrorException(&quot;No reference identifier found for reference URI &quot; + referenceURI + &quot;.&quot;);</span>
+        }
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

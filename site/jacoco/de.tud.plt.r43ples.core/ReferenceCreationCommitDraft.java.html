@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReferenceCreationCommitDraft.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">r43ples</a> &gt; <a href="index.source.html" class="el_package">de.tud.plt.r43ples.core</a> &gt; <span class="el_source">ReferenceCreationCommitDraft.java</span></div><h1>ReferenceCreationCommitDraft.java</h1><pre class="source lang-java linenums">package de.tud.plt.r43ples.core;
+
+import de.tud.plt.r43ples.exception.IdentifierAlreadyExistsException;
+import de.tud.plt.r43ples.exception.InternalErrorException;
+import de.tud.plt.r43ples.exception.QueryErrorException;
+import de.tud.plt.r43ples.existentobjects.*;
+import de.tud.plt.r43ples.management.Config;
+import de.tud.plt.r43ples.management.R43plesRequest;
+import de.tud.plt.r43ples.management.RevisionManagementOriginal;
+import org.apache.log4j.Logger;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Collection of information for creating a new reference creation commit.
+ *
+ * @author Stephan Hensel
+ */
+public class ReferenceCreationCommitDraft extends CommitDraft {
+
+    /** The logger. **/
+<span class="fc" id="L23">    private Logger logger = Logger.getLogger(ReferenceCreationCommitDraft.class);</span>
+
+    /** The pattern modifier. **/
+<span class="fc" id="L26">    private final int patternModifier = Pattern.DOTALL + Pattern.MULTILINE + Pattern.CASE_INSENSITIVE;</span>
+
+    /** The graph name. **/
+    private String graphName;
+    /** The reference name. **/
+    private String referenceName;
+    /** The revision identifier. **/
+    private String revisionIdentifier;
+    /** States if the created reference is a branch or a tag. (branch =&gt; true; tag =&gt; false) **/
+    private boolean isBranch;
+
+    /** States if this commit draft was created by a request or add and delete sets. (true =&gt; request, false =&gt; add/delete sets) **/
+    private boolean isCreatedWithRequest;
+
+
+    /**
+     * The constructor.
+     *
+     * @param request the request received by R43ples
+     * @throws InternalErrorException
+     */
+    public ReferenceCreationCommitDraft(R43plesRequest request) throws InternalErrorException {
+<span class="fc" id="L48">        super(request);</span>
+<span class="fc" id="L49">        this.extractRequestInformation();</span>
+<span class="fc" id="L50">        this.isCreatedWithRequest = true;</span>
+<span class="fc" id="L51">    }</span>
+
+    /**
+     * The constructor.
+     * Creates an reference creation commit draft by using the corresponding meta information.
+     *
+     * @param graphName the graph name
+     * @param referenceName the reference name
+     * @param revisionIdentifier the revision identifier (the corresponding revision will be the current base for the reference)
+     * @param user the user
+     * @param message the message
+     * @param isBranch states if the created reference is a branch or a tag. (branch =&gt; true; tag =&gt; false)
+     * @throws InternalErrorException
+     */
+    protected ReferenceCreationCommitDraft(String graphName, String referenceName, String revisionIdentifier, String user, String message, boolean isBranch) throws InternalErrorException {
+<span class="fc" id="L66">        super(null);</span>
+<span class="fc" id="L67">        this.setUser(user);</span>
+<span class="fc" id="L68">        this.setMessage(message);</span>
+<span class="fc" id="L69">        this.graphName = graphName;</span>
+<span class="fc" id="L70">        this.referenceName = referenceName;</span>
+<span class="fc" id="L71">        this.revisionIdentifier = revisionIdentifier;</span>
+<span class="fc" id="L72">        this.isBranch = isBranch;</span>
+<span class="fc" id="L73">        this.isCreatedWithRequest = false;</span>
+<span class="fc" id="L74">    }</span>
+
+    /**
+     * Extracts the request information and stores it to local variables.
+     *
+     * @throws InternalErrorException
+     */
+    private void extractRequestInformation() throws InternalErrorException {
+<span class="fc" id="L82">        final Pattern patternBranchOrTagQuery = Pattern.compile(&quot;(?&lt;action&gt;TAG|BRANCH)\\s*GRAPH\\s*&lt;(?&lt;graph&gt;[^&gt;]*)&gt;\\s*REVISION\\s*\&quot;(?&lt;revision&gt;[^\&quot;]*)\&quot;\\s*TO\\s*\&quot;(?&lt;name&gt;[^\&quot;]*)\&quot;&quot;,</span>
+                patternModifier);
+<span class="fc" id="L84">        Matcher m = patternBranchOrTagQuery.matcher(getRequest().query_sparql);</span>
+
+<span class="fc" id="L86">        boolean foundEntry = false;</span>
+
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        while (m.find()) {</span>
+<span class="fc" id="L89">            foundEntry = true;</span>
+<span class="fc" id="L90">            String action = m.group(&quot;action&quot;);</span>
+<span class="fc" id="L91">            this.graphName = m.group(&quot;graph&quot;);</span>
+<span class="fc" id="L92">            this.revisionIdentifier = m.group(&quot;revision&quot;).toLowerCase();</span>
+<span class="fc" id="L93">            this.referenceName = m.group(&quot;name&quot;).toLowerCase();</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">            if (action.equals(&quot;TAG&quot;)) {</span>
+<span class="fc" id="L95">                this.isBranch = false;</span>
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">            } else if (action.equals(&quot;BRANCH&quot;)) {</span>
+<span class="fc" id="L97">                this.isBranch = true;</span>
+            } else {
+<span class="nc" id="L99">                throw new QueryErrorException(&quot;Error in query: &quot; + getRequest().query_sparql);</span>
+            }
+<span class="fc" id="L101">        }</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">        if (!foundEntry) {</span>
+<span class="nc" id="L103">            throw new QueryErrorException(&quot;Error in query: &quot; + getRequest().query_sparql);</span>
+        }
+<span class="fc" id="L105">    }</span>
+
+    /**
+     * Creates the commit draft as a new commit in the triple store.
+     *
+     * @return the created reference commit
+     */
+    protected ReferenceCommit createCommitInTripleStore() throws InternalErrorException {
+<span class="fc" id="L113">        RevisionGraph revisionGraph = new RevisionGraph(graphName);</span>
+        String referenceURI;
+        String commitURI;
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (isBranch) {</span>
+<span class="fc" id="L117">            referenceURI = getRevisionManagement().getNewBranchURI(revisionGraph, referenceName);</span>
+<span class="fc" id="L118">            commitURI = getRevisionManagement().getNewBranchCommitURI(revisionGraph, referenceName);</span>
+        } else {
+<span class="fc" id="L120">            referenceURI = getRevisionManagement().getNewTagURI(revisionGraph, referenceName);</span>
+<span class="fc" id="L121">            commitURI = getRevisionManagement().getNewTagCommitURI(revisionGraph, referenceName);</span>
+        }
+
+<span class="fc" id="L124">        addMetaInformation(referenceURI, commitURI);</span>
+
+<span class="fc" id="L126">        Revision usedRevision = new Revision(revisionGraph, revisionIdentifier, true);</span>
+        Reference generatedReference;
+<span class="fc bfc" id="L128" title="All 2 branches covered.">        if (isBranch) {</span>
+<span class="fc" id="L129">            generatedReference = new Branch(revisionGraph, referenceName, referenceURI);</span>
+        } else {
+<span class="fc" id="L131">            generatedReference = new Tag(revisionGraph, referenceName, referenceURI);</span>
+        }
+
+<span class="fc" id="L134">        return new ReferenceCommit(revisionGraph, commitURI, getUser(), getTimeStamp(), getMessage(), usedRevision, generatedReference);</span>
+    }
+
+    /**
+     * Creates a new full graph for the new reference and and adds the necessary meta data.
+     *
+     * @param referenceURI the reference URI
+     * @param commitURI the commit URI
+     * @throws InternalErrorException
+     */
+    private void addMetaInformation(String referenceURI, String commitURI) throws InternalErrorException {
+<span class="fc bfc" id="L145" title="All 2 branches covered.">        if (isBranch) {</span>
+<span class="fc" id="L146">            logger.info(&quot;Create new branch '&quot; + referenceName + &quot;' for graph &quot; + graphName);</span>
+        } else {
+<span class="fc" id="L148">            logger.info(&quot;Create new tag '&quot; + referenceName + &quot;' for graph &quot; + graphName);</span>
+        }
+
+<span class="fc" id="L151">        RevisionGraph graph = new RevisionGraph(graphName);</span>
+<span class="fc" id="L152">        String revisionGraph = graph.getRevisionGraphUri();</span>
+        // Check branch existence
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">        if (graph.hasReference(referenceName)) {</span>
+            // Reference name is already in use
+<span class="nc" id="L156">            logger.error(&quot;The reference name '&quot; + referenceName + &quot;' is for the graph '&quot; + graphName</span>
+                    + &quot;' already in use.&quot;);
+<span class="nc" id="L158">            throw new IdentifierAlreadyExistsException(&quot;The reference name '&quot; + referenceName</span>
+                    + &quot;' is for the graph '&quot; + graphName + &quot;' already in use.&quot;);
+        } else {
+            // General variables
+<span class="fc bfc" id="L162" title="All 2 branches covered.">            String referenceTypeUri = isBranch ? &quot;rmo:Branch&quot; : &quot;rmo:Tag&quot;;</span>
+<span class="fc" id="L163">            String revisionUri = graph.getRevisionUri(revisionIdentifier);</span>
+<span class="fc" id="L164">            String personUri = RevisionManagementOriginal.getUserURI(getUser());</span>
+
+            // Create a new commit (activity)
+<span class="fc" id="L167">            String queryContent = String.format(&quot;&quot;</span>
+                            + &quot;&lt;%s&gt; a %sCommit, rmo:Commit; &quot;
+                            + &quot;	prov:wasAssociatedWith &lt;%s&gt; ;&quot;
+                            + &quot;	prov:generated &lt;%s&gt; ;&quot;
+                            + &quot; prov:used &lt;%s&gt; ;&quot;
+                            + &quot;	dc-terms:title \&quot;%s\&quot; ;&quot;
+                            + &quot;	prov:atTime \&quot;%s\&quot; .%n&quot;,
+                    commitURI, referenceTypeUri, personUri, referenceURI, revisionUri, getMessage(), getTimeStamp());
+
+            // Create new reference (branch/tag)
+<span class="fc" id="L177">            queryContent += String.format(&quot;&quot;</span>
+                            + &quot;&lt;%s&gt; a %s, rmo:Reference; &quot;
+                            + &quot; rmo:fullGraph &lt;%s&gt;; &quot;
+                            + &quot;	prov:wasDerivedFrom &lt;%s&gt;; &quot;
+                            + &quot;	rmo:references &lt;%s&gt;; &quot;
+                            + &quot;	rdfs:label \&quot;%s\&quot;. &quot;,
+                    referenceURI, referenceTypeUri, referenceURI, revisionUri, revisionUri, referenceName);
+
+            // Update full graph of branch
+<span class="fc" id="L186">            RevisionManagementOriginal.generateFullGraphOfRevision(graphName, revisionIdentifier, referenceURI);</span>
+
+            // Execute queries
+<span class="fc" id="L189">            String query = Config.prefixes</span>
+                    + String.format(&quot;INSERT DATA { GRAPH &lt;%s&gt; { %s } } ;&quot;, revisionGraph, queryContent);
+<span class="fc" id="L191">            getTripleStoreInterface().executeUpdateQuery(query);</span>
+        }
+<span class="fc" id="L193">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UpdateCommitDraft.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">r43ples</a> &gt; <a href="index.source.html" class="el_package">de.tud.plt.r43ples.core</a> &gt; <span class="el_source">UpdateCommitDraft.java</span></div><h1>UpdateCommitDraft.java</h1><pre class="source lang-java linenums">package de.tud.plt.r43ples.core;
+
+import com.hp.hpl.jena.query.QuerySolution;
+import de.tud.plt.r43ples.exception.InternalErrorException;
+import de.tud.plt.r43ples.exception.OutdatedException;
+import de.tud.plt.r43ples.existentobjects.Revision;
+import de.tud.plt.r43ples.existentobjects.RevisionGraph;
+import de.tud.plt.r43ples.existentobjects.UpdateCommit;
+import de.tud.plt.r43ples.management.*;
+import org.apache.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Collection of information for creating a new update commit.
+ *
+ * @author Stephan Hensel
+ * @author Markus Graube
+ */
+public class UpdateCommitDraft extends CommitDraft {
+
+	/** The logger. **/
+<span class="fc" id="L27">	private Logger logger = Logger.getLogger(UpdateCommitDraft.class);</span>
+
+	/** The pattern modifier. **/
+<span class="fc" id="L30">	private final int patternModifier = Pattern.DOTALL + Pattern.MULTILINE + Pattern.CASE_INSENSITIVE;</span>
+
+	/** The revision draft. **/
+	private RevisionDraft revisionDraft;
+	/** States if this commit draft was created by a request or add and delete sets. (true =&gt; request, false =&gt; add/delete sets) **/
+	private boolean isCreatedWithRequest;
+
+
+	/**
+	 * The constructor.
+	 * Creates an update commit draft by using the corresponding R43ples request.
+	 *
+	 * @param request the request received by R43ples
+	 */
+	protected UpdateCommitDraft(R43plesRequest request) throws OutdatedException {
+<span class="fc" id="L45">		super(request);</span>
+<span class="fc" id="L46">		this.isCreatedWithRequest = true;</span>
+<span class="fc" id="L47">	}</span>
+
+	/**
+	 * The constructor.
+	 * Creates an update commit draft by using the corresponding add and delete sets.
+	 *
+	 * @param graphName the graph name
+	 * @param addSet the add set as N-Triples
+	 * @param deleteSet the delete set as N-Triples
+	 * @param user the user
+	 * @param message the message
+	 * @param derivedFromIdentifier the revision identifier of the revision or the reference identifier from which the new revision should be derive from
+	 * @throws InternalErrorException
+	 */
+	protected UpdateCommitDraft(String graphName, String addSet, String deleteSet, String user, String message, String derivedFromIdentifier) throws InternalErrorException {
+<span class="fc" id="L62">		super(null);</span>
+<span class="fc" id="L63">		this.revisionDraft = new RevisionDraft(getRevisionManagement(), new RevisionGraph(graphName), derivedFromIdentifier, addSet, deleteSet);</span>
+<span class="fc" id="L64">		this.setUser(user);</span>
+<span class="fc" id="L65">		this.setMessage(message);</span>
+<span class="fc" id="L66">		this.isCreatedWithRequest = false;</span>
+<span class="fc" id="L67">	}</span>
+
+	/**
+	 * Creates the commit draft as a new commit in the triplestore and creates the corresponding revisions.
+	 *
+	 * @return the list of created commits
+	 */
+	protected ArrayList&lt;UpdateCommit&gt; createCommitInTripleStore() throws InternalErrorException {
+<span class="fc bfc" id="L75" title="All 2 branches covered.">		if (!isCreatedWithRequest) {</span>
+<span class="fc" id="L76">			revisionDraft.createRevisionInTripleStore();</span>
+<span class="fc" id="L77">			ArrayList&lt;UpdateCommit&gt; commitList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L78">			commitList.add(addMetaInformation(revisionDraft));</span>
+<span class="fc" id="L79">			return commitList;</span>
+		} else {
+<span class="fc" id="L81">			return this.updateChangeSetsByRewrittenQuery();</span>
+		}
+	}
+
+	/**
+	 * Updates the change sets by a rewritten SPARQL query of the request.
+	 *
+	 * @return the list of created commits
+	 * @throws InternalErrorException
+	 */
+	private ArrayList&lt;UpdateCommit&gt; updateChangeSetsByRewrittenQuery() throws InternalErrorException {
+
+<span class="fc" id="L93">		final Pattern patternUpdateRevision = Pattern.compile(&quot;(?&lt;action&gt;INSERT|DELETE)(?&lt;data&gt;\\s*DATA)?\\s*\\{&quot;,</span>
+				patternModifier);
+<span class="fc" id="L95">		final Pattern patternWhere = Pattern.compile(&quot;WHERE\\s*\\{&quot;, patternModifier);</span>
+
+<span class="fc" id="L97">		final Pattern patternEmptyGraphPattern = Pattern.compile(&quot;GRAPH\\s*&lt;(?&lt;graph&gt;[^&gt;]*)&gt;\\s*\\{\\s*\\}&quot;,</span>
+				patternModifier);
+<span class="fc" id="L99">		final Pattern patternGraphWithRevision = Pattern</span>
+				.compile(&quot;GRAPH\\s*&lt;(?&lt;graph&gt;[^&gt;]*)&gt;\\s*REVISION\\s*\&quot;(?&lt;revision&gt;[^\&quot;]*)\&quot;\\s*\\{&quot;, patternModifier);
+
+<span class="fc" id="L102">		logger.debug(&quot;SPARQL Update detected&quot;);</span>
+
+		// I. Take over prefixes and other head stuff
+		String queryRewritten;
+<span class="fc" id="L106">		Matcher m = patternUpdateRevision.matcher(getRequest().query_sparql);</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">		if (m.find()) {</span>
+<span class="fc" id="L108">			queryRewritten = getRequest().query_sparql.substring(0, m.start());</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">			if (m.group(&quot;data&quot;) != null)</span>
+<span class="fc" id="L110">				queryRewritten += &quot;INSERT DATA {&quot;;</span>
+			else
+<span class="fc" id="L112">				queryRewritten += &quot;INSERT {&quot;;</span>
+		} else {
+<span class="nc" id="L114">			throw new InternalErrorException(&quot;No R43ples update query detected.&quot;);</span>
+		}
+
+		// II. Rewrite INSERT and DELETE clauses (replace graph names in query
+		// with change set graph names)
+<span class="fc" id="L119">		List&lt;RevisionDraft&gt; revList = new LinkedList&lt;RevisionDraft&gt;();</span>
+<span class="fc" id="L120">		m = patternUpdateRevision.matcher(getRequest().query_sparql);</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">		while (m.find()) {</span>
+<span class="fc" id="L122">			String action = m.group(&quot;action&quot;);</span>
+<span class="fc" id="L123">			String updateClause = getStringEnclosedinBraces(getRequest().query_sparql, m.end());</span>
+
+<span class="fc" id="L125">			Matcher m2a = patternGraphWithRevision.matcher(updateClause);</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">			while (m2a.find()) {</span>
+<span class="fc" id="L127">				String graphName = m2a.group(&quot;graph&quot;);</span>
+<span class="fc" id="L128">				String revisionName = m2a.group(&quot;revision&quot;).toLowerCase();</span>
+
+<span class="fc" id="L130">				RevisionGraph graph = new RevisionGraph(graphName);</span>
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">				if (!graph.hasBranch(revisionName)) {</span>
+<span class="nc" id="L132">					throw new InternalErrorException(&quot;Revision is not referenced by a branch&quot;);</span>
+				}
+<span class="fc" id="L134">				RevisionDraft d = null;</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">				for (RevisionDraft draft : revList) {</span>
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">					if (draft.equals(graphName, revisionName))</span>
+<span class="fc" id="L137">						d = draft;</span>
+<span class="fc" id="L138">				}</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">				if (d == null) {</span>
+<span class="fc" id="L140">					d = new RevisionDraft(getRevisionManagement(), graph, revisionName);</span>
+<span class="fc" id="L141">					revList.add(d);</span>
+				}
+<span class="fc" id="L143">				String graphClause = getStringEnclosedinBraces(updateClause, m2a.end());</span>
+
+<span class="fc bfc" id="L145" title="All 2 branches covered.">				if (action.equalsIgnoreCase(&quot;INSERT&quot;)) {</span>
+<span class="fc" id="L146">					queryRewritten += String.format(&quot;GRAPH &lt;%s&gt; { %s }&quot;, d.getAddSetURI(), graphClause);</span>
+<span class="pc bpc" id="L147" title="1 of 2 branches missed.">				} else if (action.equalsIgnoreCase(&quot;DELETE&quot;)) {</span>
+<span class="fc" id="L148">					queryRewritten += String.format(&quot;GRAPH &lt;%s&gt; { %s }&quot;, d.getDeleteSetURI(), graphClause);</span>
+				}
+<span class="fc" id="L150">			}</span>
+<span class="fc" id="L151">		}</span>
+<span class="fc" id="L152">		queryRewritten += &quot;}&quot;;</span>
+
+		// III. Rewrite where clause
+<span class="fc" id="L155">		Matcher m1 = patternWhere.matcher(getRequest().query_sparql);</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">		if (m1.find()) {</span>
+<span class="fc" id="L157">			queryRewritten += &quot;WHERE {&quot;;</span>
+<span class="fc" id="L158">			String whereClause = getStringEnclosedinBraces(getRequest().query_sparql, m1.end());</span>
+
+<span class="fc" id="L160">			Matcher m1a = patternGraphWithRevision.matcher(whereClause);</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">			while (m1a.find()) {</span>
+<span class="fc" id="L162">				String graphName = m1a.group(&quot;graph&quot;);</span>
+<span class="fc" id="L163">				String revisionName = m1a.group(&quot;revision&quot;).toLowerCase();</span>
+				// TODO: replace generateFullGraphOfRevision with query
+				// rewriting option
+<span class="fc" id="L166">				String tempGraphName = graphName + &quot;-temp&quot;;</span>
+<span class="fc" id="L167">				RevisionManagementOriginal.generateFullGraphOfRevision(graphName, revisionName, tempGraphName);</span>
+<span class="fc" id="L168">				String GraphClause = getStringEnclosedinBraces(whereClause, m1a.end());</span>
+<span class="fc" id="L169">				queryRewritten += String.format(&quot;GRAPH &lt;%s&gt; { %s }&quot;, tempGraphName, GraphClause);</span>
+<span class="fc" id="L170">			}</span>
+<span class="fc" id="L171">			queryRewritten += &quot;}&quot;;</span>
+		}
+
+<span class="fc" id="L174">		logger.debug(&quot;Rewritten query for update: &quot; + queryRewritten);</span>
+
+		// (IIIa) Remove empty insert clauses which otherwise will lead to
+		// errors
+<span class="fc" id="L178">		m = patternEmptyGraphPattern.matcher(queryRewritten);</span>
+<span class="fc" id="L179">		queryRewritten = m.replaceAll(&quot;&quot;);</span>
+
+		// IV. Execute rewritten query (updating changesets)
+<span class="fc" id="L182">		getTripleStoreInterface().executeUpdateQuery(queryRewritten);</span>
+
+		// V. add changesets to full graph and add meta information in revision
+		// graphs
+<span class="fc" id="L186">		ArrayList&lt;UpdateCommit&gt; commitList = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">		for (RevisionDraft draft : revList) {</span>
+<span class="fc" id="L188">			addNewRevisionFromChangeSet(draft);</span>
+			// add meta information to R43ples
+<span class="fc" id="L190">			commitList.add(addMetaInformation(draft));</span>
+<span class="fc" id="L191">		}</span>
+<span class="fc" id="L192">		return commitList;</span>
+	}
+
+	/**
+	 * Add new revision from existing changeset in triplestore.
+	 * Applies changeset to full graph.
+	 *
+	 * @param draft the revision draft
+	 * @throws InternalErrorException
+	 */
+	private void addNewRevisionFromChangeSet(RevisionDraft draft) throws InternalErrorException {
+		// remove doubled data
+		// (already existing triples in add set; not existing triples in delete set)
+<span class="fc" id="L205">		getTripleStoreInterface().executeUpdateQuery(String.format(</span>
+				&quot;DELETE { GRAPH &lt;%s&gt; { ?s ?p ?o. } } WHERE { GRAPH &lt;%s&gt; { ?s ?p ?o. } }&quot;,
+				draft.getAddSetURI(), draft.getReferenceFullGraph()));
+<span class="fc" id="L208">		getTripleStoreInterface().executeUpdateQuery(String.format(</span>
+				&quot;DELETE { GRAPH &lt;%s&gt; { ?s ?p ?o. } } WHERE { GRAPH &lt;%s&gt; { ?s ?p ?o. } MINUS { GRAPH &lt;%s&gt; { ?s ?p ?o. } } }&quot;,
+				draft.getDeleteSetURI(), draft.getDeleteSetURI(), draft.getReferenceFullGraph()));
+
+		// merge change sets into reference graph
+		// (copy add set to reference graph; remove delete set from reference graph)
+<span class="fc" id="L214">		getTripleStoreInterface().executeUpdateQuery(String.format(</span>
+				&quot;INSERT { GRAPH &lt;%s&gt; { ?s ?p ?o. } } WHERE { GRAPH &lt;%s&gt; { ?s ?p ?o. } }&quot;,
+				draft.getReferenceFullGraph(), draft.getAddSetURI()));
+<span class="fc" id="L217">		getTripleStoreInterface().executeUpdateQuery(String.format(</span>
+				&quot;DELETE { GRAPH &lt;%s&gt; { ?s ?p ?o. } } WHERE { GRAPH &lt;%s&gt; { ?s ?p ?o. } }&quot;,
+				draft.getReferenceFullGraph(), draft.getDeleteSetURI()));
+<span class="fc" id="L220">	}</span>
+
+	/**
+	 * Adds meta information for commit and revision to the revision graph.
+	 *
+	 * @param draft the revision draft
+	 * @return the created commit
+	 * @throws InternalErrorException
+	 */
+	private UpdateCommit addMetaInformation(RevisionDraft draft) throws InternalErrorException {
+<span class="fc" id="L230">		String personUri = RevisionManagementOriginal.getUserURI(getUser());</span>
+
+<span class="fc" id="L232">		String revisionUri = draft.getRevisionURI();</span>
+<span class="fc" id="L233">		String commitUri = getRevisionManagement().getNewCommitURI(draft.getRevisionGraph(), draft.getNewRevisionIdentifier());</span>
+<span class="fc" id="L234">		String branchUri = draft.getRevisionGraph().getBranchUri(draft.getDerivedFromIdentifier());</span>
+<span class="fc" id="L235">		String revUriOld = draft.getRevisionGraph().getRevisionUri(draft.getDerivedFromRevisionIdentifier());</span>
+
+		// Create a new commit (activity)
+<span class="fc" id="L238">		StringBuilder queryContent = new StringBuilder(1000);</span>
+<span class="fc" id="L239">		queryContent.append(String.format(</span>
+				&quot;&lt;%s&gt; a rmo:RevisionCommit; &quot;
+						+ &quot;	prov:wasAssociatedWith &lt;%s&gt;;&quot;
+						+ &quot;	prov:generated &lt;%s&gt;;&quot;
+						+ &quot;	dc-terms:title \&quot;%s\&quot;;&quot;
+						+ &quot; prov:used &lt;%s&gt; ;&quot;
+						+ &quot;	prov:atTime \&quot;%s\&quot;^^xsd:dateTime. %n&quot;, commitUri,
+				personUri, revisionUri, getMessage(), revUriOld, getTimeStamp()));
+
+		// Create new revision
+<span class="fc" id="L249">		queryContent.append(String.format(</span>
+				&quot;&lt;%s&gt; a rmo:Revision ; %n&quot;
+						+ &quot;	rmo:addSet &lt;%s&gt; ; %n&quot;
+						+ &quot;	rmo:deleteSet &lt;%s&gt; ; %n&quot;
+						+ &quot;	rmo:revisionNumber \&quot;%s\&quot; ; %n&quot;
+						+ &quot;	rmo:belongsTo &lt;%s&gt; ; %n&quot;
+						+ &quot; prov:wasDerivedFrom &lt;%s&gt; . %n&quot;
+				,  revisionUri, draft.getAddSetURI(), draft.getDeleteSetURI(), draft.getNewRevisionIdentifier(), branchUri, revUriOld));
+
+<span class="fc" id="L258">		String query = Config.prefixes</span>
+				+ String.format(&quot;INSERT DATA { GRAPH &lt;%s&gt; { %s } }&quot;, draft.getRevisionGraph().getRevisionGraphUri(),
+				queryContent.toString());
+
+<span class="fc" id="L262">		getTripleStoreInterface().executeUpdateQuery(query);</span>
+
+		// Move branch to new revision
+<span class="fc" id="L265">		String branchIdentifier = draft.getDerivedFromIdentifier(); //or revisionNumber //TODO</span>
+<span class="fc" id="L266">		String oldRevisionUri = draft.getRevisionGraph().getRevisionUri(branchIdentifier);</span>
+
+<span class="fc" id="L268">		String queryBranch = Config.prefixes + String.format(&quot;&quot;</span>
+						+ &quot;SELECT ?branch &quot;
+						+ &quot;WHERE { GRAPH &lt;%s&gt; {&quot;
+						+ &quot;	?branch a rmo:Branch; &quot;
+						+ &quot;		rmo:references &lt;%s&gt;.&quot;
+						+ &quot;	{?branch rdfs:label \&quot;%s\&quot;} UNION {&lt;%s&gt; rmo:revisionNumber \&quot;%s\&quot;}&quot;
+						+ &quot;} }&quot;,
+				draft.getRevisionGraph().getRevisionGraphUri(), oldRevisionUri, branchIdentifier, oldRevisionUri,
+				branchIdentifier);
+<span class="fc" id="L277">		QuerySolution sol = getTripleStoreInterface().executeSelectQuery(queryBranch).next();</span>
+<span class="fc" id="L278">		String branchName = sol.getResource(&quot;?branch&quot;).toString();</span>
+<span class="fc" id="L279">		moveBranchReference(draft.getRevisionGraph().getRevisionGraphUri(), branchName, oldRevisionUri, revisionUri);</span>
+
+<span class="fc" id="L281">		Revision newRevision = new Revision(draft.getRevisionGraph(), draft.getNewRevisionIdentifier(), revisionUri, draft.getAddSetURI(), draft.getDeleteSetURI());</span>
+<span class="fc" id="L282">		newRevision.getDerivedFromRevision();</span>
+
+<span class="fc" id="L284">		return new UpdateCommit(draft.getRevisionGraph(), commitUri, getUser(), getTimeStamp(), getMessage(), newRevision.getDerivedFromRevision(), newRevision);</span>
+	}
+
+	/**
+	 * Get a string enclosed in braces.
+	 *
+	 * @param string the original string
+	 * @param start_pos the start position
+	 * @return the enclosed in braces string
+	 */
+	private String getStringEnclosedinBraces(final String string, int start_pos){
+<span class="fc" id="L295">		int end_pos = start_pos;</span>
+<span class="fc" id="L296">		int count_parenthesis = 1;</span>
+<span class="fc bfc" id="L297" title="All 2 branches covered.">		while (count_parenthesis&gt;0) {</span>
+<span class="fc" id="L298">			end_pos++;</span>
+<span class="fc" id="L299">			char ch = string.charAt(end_pos);</span>
+<span class="fc bfc" id="L300" title="All 2 branches covered.">			if (ch=='{') count_parenthesis++;</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">			if (ch=='}') count_parenthesis--;</span>
+<span class="fc" id="L302">		}</span>
+<span class="fc" id="L303">		return string.substring(start_pos, end_pos);</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

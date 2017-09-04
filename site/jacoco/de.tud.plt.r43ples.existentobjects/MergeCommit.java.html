@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MergeCommit.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">r43ples</a> &gt; <a href="index.source.html" class="el_package">de.tud.plt.r43ples.existentobjects</a> &gt; <span class="el_source">MergeCommit.java</span></div><h1>MergeCommit.java</h1><pre class="source lang-java linenums">package de.tud.plt.r43ples.existentobjects;
+
+import de.tud.plt.r43ples.exception.InternalErrorException;
+import org.apache.log4j.Logger;
+
+/**
+ * Provides information of an merge commit.
+ *
+ * @author Stephan Hensel
+ */
+public class MergeCommit extends Commit {
+
+    /** The logger. **/
+<span class="pc" id="L14">    private Logger logger = Logger.getLogger(MergeCommit.class);</span>
+
+    /** The used source revision. **/
+    private Revision usedSourceRevision;
+    /** The used source branch. **/
+    private Branch usedSourceBranch;
+    /** The used target revision. **/
+    private Revision usedTargetRevision;
+    /** The used target branch. **/
+    private Branch usedTargetBranch;
+    /** The generated revision. */
+    private Revision generatedRevision;
+    /** The common revision. **/
+    private Revision commonRevision;
+    /** Identifies if there is a conflict. **/
+    private boolean hasConflict;
+    /** The conflict model as TURTLE. **/
+    private String conflictModel;
+    /** The URI of the difference model graph. **/
+    private String differenceModelURI;
+
+
+    /**
+     * The constructor.
+     *
+     * @param revisionGraph the revision graph
+     * @param commitURI the commit URI
+     * @throws InternalErrorException
+     */
+    public MergeCommit(RevisionGraph revisionGraph, String commitURI) throws InternalErrorException {
+<span class="nc" id="L44">        super(revisionGraph, commitURI);</span>
+<span class="nc" id="L45">    }</span>
+
+    /**
+     * The constructor.
+     *
+     * @param revisionGraph the revision graph
+     * @param commitURI the commit URI
+     * @param user the user
+     * @param timeStamp the time stamp
+     * @param message the message
+     * @throws InternalErrorException
+     */
+    public MergeCommit(RevisionGraph revisionGraph, String commitURI, String user, String timeStamp, String message) throws InternalErrorException {
+<span class="nc" id="L58">        super(revisionGraph, commitURI, user, timeStamp, message);</span>
+<span class="nc" id="L59">    }</span>
+
+    /**
+     * The constructor.
+     *
+     * @param revisionGraph the revision graph
+     * @param commitURI the commit URI
+     * @param user the user
+     * @param timeStamp the time stamp
+     * @param message the message
+     * @param usedSourceRevision the used source revision
+     * @param usedSourceBranch the used source branch
+     * @param usedTargetRevision the used target revision
+     * @param usedTargetBranch the used target branch
+     * @param generatedRevision the generated revision
+     * @param commonRevision the common revision
+     * @param hasConflict identifies if there is a conflict
+     * @param conflictModel the conflict model as TURTLE
+     * @param differenceModelURI the URI of the difference model graph
+     * @throws InternalErrorException
+     */
+    public MergeCommit(RevisionGraph revisionGraph, String commitURI, String user, String timeStamp, String message,
+                       Revision usedSourceRevision, Branch usedSourceBranch, Revision usedTargetRevision, Branch usedTargetBranch, Revision generatedRevision,
+                       Revision commonRevision, boolean hasConflict, String conflictModel, String differenceModelURI) throws InternalErrorException {
+<span class="fc" id="L83">        super(revisionGraph, commitURI, user, timeStamp, message);</span>
+<span class="fc" id="L84">        this.usedSourceRevision = usedSourceRevision;</span>
+<span class="fc" id="L85">        this.usedSourceBranch = usedSourceBranch;</span>
+<span class="fc" id="L86">        this.usedTargetRevision = usedTargetRevision;</span>
+<span class="fc" id="L87">        this.usedTargetBranch = usedTargetBranch;</span>
+<span class="fc" id="L88">        this.generatedRevision = generatedRevision;</span>
+<span class="fc" id="L89">        this.commonRevision = commonRevision;</span>
+<span class="fc" id="L90">        this.hasConflict = hasConflict;</span>
+<span class="fc" id="L91">        this.conflictModel = conflictModel;</span>
+<span class="fc" id="L92">        this.differenceModelURI = differenceModelURI;</span>
+<span class="fc" id="L93">    }</span>
+
+    /**
+     * Get the used source revision.
+     *
+     * @return the used source revision
+     */
+    public Revision getUsedSourceRevision() {
+<span class="fc" id="L101">        return usedSourceRevision;</span>
+    }
+
+    /**
+     * Get the used source branch.
+     *
+     * @return the used source branch
+     */
+    public Branch getUsedSourceBranch() {
+<span class="nc" id="L110">        return usedSourceBranch;</span>
+    }
+
+    /**
+     * Get the used target revision.
+     *
+     * @return the used target revision
+     */
+    public Revision getUsedTargetRevision() {
+<span class="fc" id="L119">        return usedTargetRevision;</span>
+    }
+
+    /**
+     * Get the used target branch.
+     *
+     * @return the used target branch
+     */
+    public Branch getUsedTargetBranch() {
+<span class="nc" id="L128">        return usedTargetBranch;</span>
+    }
+
+    /**
+     * Get the generated revision.
+     *
+     * @return the generated revision
+     */
+    public Revision getGeneratedRevision() {
+<span class="nc" id="L137">        return generatedRevision;</span>
+    }
+
+    /**
+     * Get the common revision.
+     *
+     * @return the common revision
+     */
+    public Revision getCommonRevision() {
+<span class="nc" id="L146">        return commonRevision;</span>
+    }
+
+    /**
+     * Identifies if there is a conflict.
+     *
+     * @return the boolean which identifies if there is a conflict
+     */
+    public boolean isHasConflict() {
+<span class="fc" id="L155">        return hasConflict;</span>
+    }
+
+    /**
+     * Get the conflict model as TURTLE.
+     *
+     * @return the conflict model as TURTLE
+     */
+    public String getConflictModel() {
+<span class="fc" id="L164">        return conflictModel;</span>
+    }
+
+    /**
+     * Get the URI of the difference model graph.
+     *
+     * @return the URI of the difference model graph
+     */
+    public String getDifferenceModelURI() {
+<span class="nc" id="L173">        return differenceModelURI;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

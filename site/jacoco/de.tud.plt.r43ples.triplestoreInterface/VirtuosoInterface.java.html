@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VirtuosoInterface.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">r43ples</a> &gt; <a href="index.source.html" class="el_package">de.tud.plt.r43ples.triplestoreInterface</a> &gt; <span class="el_source">VirtuosoInterface.java</span></div><h1>VirtuosoInterface.java</h1><pre class="source lang-java linenums">package de.tud.plt.r43ples.triplestoreInterface;
+
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.QueryFactory;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.rdf.model.Model;
+import org.apache.log4j.Logger;
+import virtuoso.jena.driver.*;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+/**
+ * Interface for accessing Virtuoso over a JDBC bridge
+ * 
+ * Currently not working since all results are empty
+ * 
+ * 
+ * @author Markus Graube
+ *
+ */
+public class VirtuosoInterface extends TripleStoreInterface {
+	
+	/** The logger. **/
+<span class="nc" id="L26">	private static Logger logger = Logger.getLogger(VirtuosoInterface.class);</span>
+
+	private VirtGraph set;
+	
+<span class="nc" id="L30">	public VirtuosoInterface(String virtuoso_url, String virtuoso_user, String virtuoso_password) {</span>
+		
+<span class="nc" id="L32">		set = new VirtGraph (virtuoso_url, virtuoso_user, virtuoso_password);</span>
+<span class="nc" id="L33">	}</span>
+
+	@Override
+	public void close() {
+<span class="nc" id="L37">		set.close();</span>
+<span class="nc" id="L38">		set = null;</span>
+<span class="nc" id="L39">	}</span>
+
+
+	@Override
+	public ResultSet executeSelectQuery(String selectQueryString) {
+<span class="nc" id="L44">		Query query =  QueryFactory.create(selectQueryString);</span>
+<span class="nc" id="L45">		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, set);</span>
+<span class="nc" id="L46">		ResultSet result = vqe.execSelect();</span>
+<span class="nc" id="L47">		vqe.close();</span>
+<span class="nc" id="L48">		return result;</span>
+	}
+
+	@Override
+	public Model executeConstructQuery(String constructQueryString) {
+<span class="nc" id="L53">		Query query =  QueryFactory.create(constructQueryString);</span>
+<span class="nc" id="L54">		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query,  set);</span>
+<span class="nc" id="L55">		Model result = vqe.execConstruct();</span>
+<span class="nc" id="L56">		vqe.close();</span>
+<span class="nc" id="L57">		return result;</span>
+	}
+
+
+	@Override
+	public boolean executeAskQuery(String askQueryString) {
+<span class="nc" id="L63">		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(askQueryString, set);</span>
+<span class="nc" id="L64">		boolean result = vqe.execAsk();</span>
+<span class="nc" id="L65">		vqe.close();</span>
+<span class="nc" id="L66">		return result;</span>
+	}
+
+	@Override
+	public void executeUpdateQuery(String updateQueryString) {
+<span class="nc" id="L71">		logger.debug(updateQueryString);</span>
+<span class="nc" id="L72">		VirtuosoUpdateRequest vqe = VirtuosoUpdateFactory.create(updateQueryString, set);</span>
+		try {
+<span class="nc" id="L74">			vqe.exec();</span>
+		}
+<span class="nc" id="L76">		catch (Exception e) {</span>
+<span class="nc" id="L77">			logger.error(e);</span>
+<span class="nc" id="L78">			throw e;</span>
+<span class="nc" id="L79">		}</span>
+<span class="nc" id="L80">	}</span>
+
+	@Override
+	public void executeCreateGraph(String graph) {
+<span class="nc" id="L84">		VirtuosoUpdateRequest vqe = VirtuosoUpdateFactory.create(&quot;CREATE GRAPH &lt;&quot;+graph+&quot;&gt;&quot;, set);</span>
+		try {
+<span class="nc" id="L86">			vqe.exec();</span>
+		}
+<span class="nc" id="L88">		catch (Exception e) {</span>
+<span class="nc" id="L89">			logger.error(e);</span>
+<span class="nc" id="L90">			throw e;</span>
+<span class="nc" id="L91">		}</span>
+<span class="nc" id="L92">	}</span>
+
+	@Override
+	public Iterator&lt;String&gt; getGraphs() {
+<span class="nc" id="L96">		ResultSet resultSet = executeSelectQuery(&quot;SELECT DISTINCT ?graph WHERE { GRAPH ?graph { ?s ?p ?o}}&quot;);</span>
+<span class="nc" id="L97">		List&lt;String&gt; list = new ArrayList&lt;String&gt;();</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">		while (resultSet.hasNext())</span>
+<span class="nc" id="L99">			list.add(resultSet.next().getResource(&quot;?graph&quot;).toString());</span>
+<span class="nc" id="L100">		return list.iterator();</span>
+	}
+
+	@Override
+	public Model executeDescribeQuery(String describeQueryString) {
+<span class="nc" id="L105">		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(describeQueryString, set);</span>
+<span class="nc" id="L106">		return vqe.execDescribe();</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

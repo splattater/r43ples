@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RevisionDraft.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">r43ples</a> &gt; <a href="index.source.html" class="el_package">de.tud.plt.r43ples.core</a> &gt; <span class="el_source">RevisionDraft.java</span></div><h1>RevisionDraft.java</h1><pre class="source lang-java linenums">package de.tud.plt.r43ples.core;
+
+import de.tud.plt.r43ples.exception.InternalErrorException;
+import de.tud.plt.r43ples.existentobjects.Revision;
+import de.tud.plt.r43ples.existentobjects.RevisionGraph;
+import de.tud.plt.r43ples.management.RevisionManagementOriginal;
+import de.tud.plt.r43ples.triplestoreInterface.TripleStoreInterface;
+import de.tud.plt.r43ples.triplestoreInterface.TripleStoreInterfaceSingleton;
+import org.apache.log4j.Logger;
+
+/**
+ * Collection of information for creating a new revision
+ *
+ * @author Markus Graube
+ * @author Stephan Hensel
+ *
+ */
+public class RevisionDraft {
+
+    /** The logger. **/
+<span class="fc" id="L21">    private Logger logger = Logger.getLogger(RevisionDraft.class);</span>
+    /** The revision identifier of the revision from which the new one should be derive from. **/
+    private String derivedFromRevisionIdentifier;
+    /** The derived from identifier. (The revision identifier of the revision or the reference identifier from which the new revision should be derive from.) **/
+    private String derivedFromIdentifier;
+    /** The revision identifier of the revision which should be created. **/
+    private String newRevisionIdentifier;
+    /** The revision URI. **/
+    private String revisionURI;
+    /** The ADD set URI. */
+    private String addSetURI;
+    /** The DELETE set URI. */
+    private String deleteSetURI;
+    /** The referenced full graph. **/
+    private String referenceFullGraph;
+    /** The add set as N-Triples. **/
+    private String addSet;
+    /** The delete set as N-Triples. **/
+    private String deleteSet;
+
+    /** The revision graph URI. */
+    private String revisionGraphURI;
+    /** The corresponding revision graph. */
+    private RevisionGraph revisionGraph;
+    /** The current revision management instance. */
+    private RevisionManagement revisionManagement;
+
+    // Dependencies
+    /** The triple store interface to use. **/
+    private TripleStoreInterface tripleStoreInterface;
+
+
+    /**
+     * The constructor. Add and delete sets can be specified which are associated with this revision.
+     *
+     * @param revisionManagement the current revision management instance
+     * @param revisionGraph the revision graph
+     * @param derivedFromIdentifier the revision identifier of the revision or the reference identifier from which the new revision should be derive from
+     * @param addSet the add set of the revision as N-Triples
+     * @param deleteSet the delete set of the revision as N-Triples
+     * @throws InternalErrorException
+     */
+<span class="fc" id="L63">    public RevisionDraft(RevisionManagement revisionManagement, RevisionGraph revisionGraph, String derivedFromIdentifier, String addSet, String deleteSet) throws InternalErrorException {</span>
+        // Dependencies
+<span class="fc" id="L65">        this.tripleStoreInterface = TripleStoreInterfaceSingleton.get();</span>
+
+<span class="fc" id="L67">        this.revisionManagement = revisionManagement;</span>
+<span class="fc" id="L68">        this.revisionGraph = revisionGraph;</span>
+<span class="fc" id="L69">        this.revisionGraphURI = this.revisionGraph.getRevisionGraphUri();</span>
+<span class="fc" id="L70">		this.derivedFromRevisionIdentifier = revisionGraph.getRevisionIdentifier(derivedFromIdentifier);</span>
+<span class="fc" id="L71">		this.derivedFromIdentifier = derivedFromIdentifier;</span>
+<span class="fc" id="L72">     	this.newRevisionIdentifier = revisionGraph.getNextRevisionIdentifier();</span>
+
+<span class="fc" id="L74">     	this.revisionURI = this.revisionManagement.getNewRevisionURI(revisionGraph, newRevisionIdentifier);</span>
+<span class="fc" id="L75">		this.addSetURI = this.revisionManagement.getNewAddSetURI(revisionGraph, newRevisionIdentifier);</span>
+<span class="fc" id="L76">		this.deleteSetURI = this.revisionManagement.getNewDeleteSetURI(revisionGraph, newRevisionIdentifier);</span>
+
+<span class="fc" id="L78">		this.referenceFullGraph = revisionGraph.getReferenceGraph(derivedFromIdentifier);</span>
+
+<span class="fc" id="L80">		this.addSet = addSet;</span>
+<span class="fc" id="L81">		this.deleteSet = deleteSet;</span>
+<span class="fc" id="L82">	}</span>
+
+    /**
+     * The constructor. Add and delete sets must be generated by commit.
+     *
+     * @param revisionManagement the current revision management instance
+     * @param revisionGraph the revision graph
+     * @param derivedFromIdentifier the revision identifier of the revision or the reference identifier from which the new revision should be derive from
+     * @throws InternalErrorException
+     */
+<span class="fc" id="L92">    public RevisionDraft(RevisionManagement revisionManagement, RevisionGraph revisionGraph, String derivedFromIdentifier) throws InternalErrorException {</span>
+        // Dependencies
+<span class="fc" id="L94">        this.tripleStoreInterface = TripleStoreInterfaceSingleton.get();</span>
+
+<span class="fc" id="L96">        this.revisionManagement = revisionManagement;</span>
+<span class="fc" id="L97">        this.revisionGraph = revisionGraph;</span>
+<span class="fc" id="L98">        this.revisionGraphURI = this.revisionGraph.getRevisionGraphUri();</span>
+<span class="fc" id="L99">        this.derivedFromRevisionIdentifier = revisionGraph.getRevisionIdentifier(derivedFromIdentifier);</span>
+<span class="fc" id="L100">        this.derivedFromIdentifier = derivedFromIdentifier;</span>
+<span class="fc" id="L101">        this.newRevisionIdentifier = revisionGraph.getNextRevisionIdentifier();</span>
+
+<span class="fc" id="L103">        this.revisionURI = this.revisionManagement.getNewRevisionURI(revisionGraph, newRevisionIdentifier);</span>
+<span class="fc" id="L104">        this.addSetURI = this.revisionManagement.getNewAddSetURI(revisionGraph, newRevisionIdentifier);</span>
+<span class="fc" id="L105">        this.deleteSetURI = this.revisionManagement.getNewDeleteSetURI(revisionGraph, newRevisionIdentifier);</span>
+
+<span class="fc" id="L107">        this.referenceFullGraph = revisionGraph.getReferenceGraph(derivedFromIdentifier);</span>
+
+<span class="fc" id="L109">        this.addSet = null;</span>
+<span class="fc" id="L110">        this.deleteSet = null;</span>
+<span class="fc" id="L111">    }</span>
+
+    /**
+     * The constructor.
+     * Usage only for initial commit (there is no derived from revision identifier, initial revision identifier will be calculated).
+     * Add and delete sets can be specified which are associated with this revision.
+     *
+     * @param revisionManagement the current revision management instance
+     * @param revisionGraph the revision graph
+     * @param addSet the add set of the revision as N-Triples
+     * @param deleteSet the delete set of the revision as N-Triples
+     * @throws InternalErrorException
+     */
+<span class="fc" id="L124">    public RevisionDraft(RevisionManagement revisionManagement, RevisionGraph revisionGraph, String addSet, String deleteSet) throws InternalErrorException {</span>
+        // Dependencies
+<span class="fc" id="L126">        this.tripleStoreInterface = TripleStoreInterfaceSingleton.get();</span>
+
+<span class="fc" id="L128">        this.revisionManagement = revisionManagement;</span>
+<span class="fc" id="L129">        this.revisionGraph = revisionGraph;</span>
+<span class="fc" id="L130">        this.revisionGraphURI = this.revisionGraph.getRevisionGraphUri();</span>
+<span class="fc" id="L131">        this.newRevisionIdentifier = revisionGraph.getNextRevisionIdentifier();</span>
+
+<span class="fc" id="L133">        this.revisionURI = this.revisionManagement.getNewRevisionURI(revisionGraph, newRevisionIdentifier);</span>
+<span class="fc" id="L134">        this.addSetURI = this.revisionManagement.getNewAddSetURI(revisionGraph, newRevisionIdentifier);</span>
+<span class="fc" id="L135">        this.deleteSetURI = this.revisionManagement.getNewDeleteSetURI(revisionGraph, newRevisionIdentifier);</span>
+
+<span class="fc" id="L137">        this.referenceFullGraph = revisionGraph.getGraphName();</span>
+
+<span class="fc" id="L139">        this.addSet = addSet;</span>
+<span class="fc" id="L140">        this.deleteSet = deleteSet;</span>
+<span class="fc" id="L141">    }</span>
+
+    /**
+     * Creates the revision draft as a new revision in the triplestore and updates the referenced full graph.
+     * Does not update any meta data.
+     *
+     * @return the created revision
+     */
+    public Revision createRevisionInTripleStore() throws InternalErrorException {
+<span class="fc" id="L150">        logger.info(&quot;Create new revision for graph &quot; + revisionGraph.getGraphName() + &quot;.&quot;);</span>
+
+<span class="pc bpc" id="L152" title="1 of 4 branches missed.">        if (addSet!=null &amp;&amp; !addSet.isEmpty()) {</span>
+            // Update full graph of branch
+<span class="fc" id="L154">            RevisionManagementOriginal.executeINSERT(referenceFullGraph, addSet);</span>
+
+            // Create new graph with addSet-newRevisionNumber
+<span class="fc" id="L157">            logger.debug(&quot;Create new graph with name &quot; + addSetURI + &quot;.&quot;);</span>
+<span class="fc" id="L158">            tripleStoreInterface.executeUpdateQuery(String.format(&quot;CREATE SILENT GRAPH &lt;%s&gt;%n&quot;, addSetURI));</span>
+<span class="fc" id="L159">            RevisionManagementOriginal.executeINSERT(addSetURI, addSet);</span>
+        }
+
+<span class="fc bfc" id="L162" title="All 4 branches covered.">        if (deleteSet!=null &amp;&amp; !deleteSet.isEmpty()) {</span>
+            // Update full graph of branch
+<span class="fc" id="L164">            RevisionManagementOriginal.executeDELETE(referenceFullGraph, deleteSet);</span>
+
+            // Create new graph with deleteSet-newRevisionNumber
+<span class="fc" id="L167">            logger.debug(&quot;Create new graph with name &quot; + deleteSetURI + &quot;.&quot;);</span>
+<span class="fc" id="L168">            tripleStoreInterface.executeUpdateQuery(String.format(&quot;CREATE SILENT GRAPH &lt;%s&gt;%n&quot;, deleteSetURI));</span>
+<span class="fc" id="L169">            RevisionManagementOriginal.executeINSERT(deleteSetURI, deleteSet);</span>
+        }
+
+<span class="fc" id="L172">        return new Revision(revisionGraph, newRevisionIdentifier, revisionURI, addSetURI, deleteSetURI);</span>
+    }
+
+    /**
+     * Checks if this revision draft is equal to another one.
+     *
+     * @param graphName the graph name
+     * @param revisionIdentifier the revision identifier
+     * @return true if the revision is equal
+     * @throws InternalErrorException
+     */
+    public boolean equals(final String graphName, final String revisionIdentifier) throws InternalErrorException{
+<span class="fc" id="L184">		RevisionGraph otherGraph = new RevisionGraph(graphName);</span>
+<span class="fc" id="L185">		String otherRevisionNumber = otherGraph.getRevisionIdentifier(revisionIdentifier);</span>
+<span class="pc bpc" id="L186" title="2 of 4 branches missed.">		return ((this.revisionGraph.getGraphName().equals(graphName)) &amp;&amp; (this.derivedFromRevisionIdentifier.equals(otherRevisionNumber)));</span>
+	}
+
+    /**
+     * Get the add set URI.
+     *
+     * @return the add set URI
+     */
+    public String getAddSetURI() {
+<span class="fc" id="L195">        return addSetURI;</span>
+    }
+
+    /**
+     * Get the delete set URI.
+     *
+     * @return the delete set URI
+     */
+    public String getDeleteSetURI() {
+<span class="fc" id="L204">        return deleteSetURI;</span>
+    }
+
+    /**
+     * Get the revision graph.
+     *
+     * @return the revision graph
+     */
+    public RevisionGraph getRevisionGraph() {
+<span class="fc" id="L213">        return revisionGraph;</span>
+    }
+
+    /**
+     * Get the revision URI.
+     *
+     * @return the revision URI
+     */
+    public String getRevisionURI() {
+<span class="fc" id="L222">        return revisionURI;</span>
+    }
+
+    /**
+     * Get the new revision identifier.
+     *
+     * @return the new revision identifier
+     */
+    public String getNewRevisionIdentifier() {
+<span class="fc" id="L231">        return newRevisionIdentifier;</span>
+    }
+
+    /**
+     * Get the derived from revision identifier.
+     *
+     * @return the derived from revision identifier
+     */
+    public String getDerivedFromRevisionIdentifier() {
+<span class="fc" id="L240">        return derivedFromRevisionIdentifier;</span>
+    }
+
+    /**
+     * Get the derived from identifier. (The revision identifier of the revision or the reference identifier from which the new revision should be derive from.)
+     *
+     * @return the derived from identifier
+     */
+    public String getDerivedFromIdentifier() {
+<span class="fc" id="L249">        return derivedFromIdentifier;</span>
+    }
+
+    /**
+     * Get the referenced full graph.
+     *
+     * @return the referenced full graph
+     */
+    public String getReferenceFullGraph() {
+<span class="fc" id="L258">        return referenceFullGraph;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
